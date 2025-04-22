@@ -55,16 +55,11 @@ def parse_vivado_utilization(filename, core, board):
 
 def parse_vivado_timing(filename):
     with open(filename, 'r') as f:
-        content = f.read()
-        current_clock = re.search(
-            r'sys_clk_pin\s+\S+\s+\S+\s+(\d+\.\d+)', content
-        )
+        content = f.read() 
         slack = re.search(r'Slack \(MET\) :\s+(\d+\.\d+)', content)
-        if current_clock and slack:
-            current_clock = float(current_clock.group(1))
+        if slack:
             slack = float(slack.group(1))
-            required_period = current_clock - slack
-            period = required_period * 10**-9
+            period = slack * 10**-9
             frequency_mhz = int(1 / (period * 10**6))
         else:
             print('Warning: It was not possible to find minimum period')
