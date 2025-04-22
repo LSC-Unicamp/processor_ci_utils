@@ -173,5 +173,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-
+# Local configuration files
 performance_logs/
+cores_utils/
