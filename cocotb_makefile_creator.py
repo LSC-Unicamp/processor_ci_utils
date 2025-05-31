@@ -92,15 +92,16 @@ def create_cocotb_makefile(processor_name: str, config_file: str, output_dir: st
 
     return makefile_path
 
-def main(processor_name: str, config_file: str, output_dir: str):
+def main(processor_name: str, config_file: str, output_dir: str, cocotb_name: str):
     """Main function to create the cocotb Makefile.
 
     Args:
         processor_name (str): Name of the processor.
         config_file (str): Path to the configuration file.
         output_dir (str): Directory to save the generated Makefile.
+        cocotb_name (str): Name of the cocotb module.
     """
-    makefile_path = create_cocotb_makefile(processor_name, config_file, output_dir)
+    makefile_path = create_cocotb_makefile(processor_name, config_file, output_dir, cocotb_name)
     logging.info(f'Makefile created at: {makefile_path}')
     return makefile_path
 
