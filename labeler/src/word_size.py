@@ -4,6 +4,7 @@ import re
 import os
 import json
 
+
 def find_reg_bank(dut, submodule_attr, signals_list):
     if signals_list == None: # starting with dut
         signals_list = []
@@ -77,42 +78,3 @@ def count_bits(dut, signals_list):
         for signal in signals_list:
             if len(getattr(signal[0], signal[1])[0]) == 32 or len(getattr(signal[0], signal[1])[0]) == 64:
                 return len(getattr(signal[0], signal[1])[0])
-
-
-@cocotb.test()
-async def processor_test(dut):
-    """Test function for the processor.
-
-    Args:
-        dut: The design under test.
-    """
-
-    bits = count_bits(dut, None)
-    
-    output_dir = os.environ.get('OUTPUT_DIR', "default")
-    processor_name = os.path.basename(output_dir)
-    print(f"Processor name: {output_dir}")
-
-    output_file = os.path.join(output_dir, f"{processor_name}_labels.json")
-
-    if not os.path.exists(output_file):
-        with open(output_file, 'w', encoding='utf-8') as json_file:
-            json.dump({}, json_file, indent=4)
-
-    # Load existing JSON data
-    try:
-        with open(output_file, 'r', encoding='utf-8') as json_file:
-            existing_data = json.load(json_file)
-    except (json.JSONDecodeError, OSError) as e:
-        logging.warning('Error reading existing JSON file: %s', e)
-        existing_data = {}
-
-    existing_data[processor_name]["bits"] = bits
-
-    # Save the updated data back to the JSON file
-    try:
-        with open(output_file, 'w', encoding='utf-8') as json_file:
-            json.dump(existing_data, json_file, indent=4)
-        print(f'Results saved to {output_file}')
-    except OSError as e:
-        logging.warning('Error writing to JSON file: %s', e)
