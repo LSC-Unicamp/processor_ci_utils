@@ -11,7 +11,8 @@ def standard_makefile(processor_name: str, language: str, config_folder: str, ou
     #Load the processor configuration
     inc_dir = config['include_dirs']
     sim_files = config['files']
-    top_module = config['top_module']
+    if top_module == '':
+        top_module = config['top_module']
     language_version = config['language_version']
 
     # Write the Makefile content
@@ -40,6 +41,8 @@ def standard_makefile(processor_name: str, language: str, config_folder: str, ou
                 makefile.write(f'VHDL_INCLUDE_DIRS = cores/{processor_name}/{dirs}\n')
             for file in sim_files:
                 makefile.write(f'VHDL_SOURCES += cores/{processor_name}/{file}\n')
+        if top_module == 'processor_ci_top':
+            makefile.write(f'VERILOG_SOURCES += {top_file}\n')
         makefile.write(f'TOPLEVEL = {top_module}\n')
         makefile.write(f'MODULE = {cocotb_name}\n')
         makefile.write(f'OUTPUT_DIR = {output_dir}/{processor_name}\n')

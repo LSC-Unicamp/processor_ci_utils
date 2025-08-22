@@ -148,6 +148,7 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     cpu_bits = 'Undetected'
     cache = 'Undetected'
     language = identify_language(directory)
+
     generate_labels_file(processor_name, license_types, cpu_bits, cache, language, output_dir)
 
     # Create a Makefile for cocotb simulation
