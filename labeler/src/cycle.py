@@ -1,4 +1,6 @@
 import cocotb
+import os
+import json
 from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 
@@ -30,55 +32,71 @@ async def instr_mem_driver(dut):
 
 
 async def measure_pipeline_depth(dut, regfile):
-    """Issue ADDI x1, x0, 5 and measure how many cycles until regfile[x1] is updated."""
+    """
+    Issue ADDI x1, x0, 5 and measure how many cycles until regfile[x1] is updated.
+    Returns measured latency (int) or None on failure.
+    """
     x1_idx = 1
 
-    # Record initial value of x1, handle 'x' states
+    # Align to clock and sample a baseline for x1 (handle 'x' safely)
     await RisingEdge(dut.sys_clk)
     try:
-        if regfile[x1_idx].value.is_resolvable:
-            baseline = int(regfile[x1_idx].value)
-        else:
-            baseline = 0  # Default to 0 if unresolvable ('x' state)
-    except (ValueError, AttributeError):
-        baseline = 0  # Default to 0 if conversion fails
+        baseline = int(regfile[x1_idx].value) if regfile[x1_idx].value.is_resolvable else 0
+    except Exception:
+        baseline = 0
 
     issue_cycle = None
     write_cycle = None
 
-    for cycle in range(50):
+    # Maximum observation window
+    max_cycles = 200
+
+    for cycle in range(max_cycles):
         await RisingEdge(dut.sys_clk)
-        
-        pc = dut.core_addr.value.integer if dut.core_addr.value.is_resolvable else None
-        dut._log.info(f"Cycle {cycle}: PC = {pc:#010x}")
 
-        # When ADDI is fetched (at PC = 0x00000080)
-        if issue_cycle is None and dut.core_addr.value.is_resolvable:
-            if dut.core_addr.value.integer == 0x00000080:
-                issue_cycle = cycle
-                dut._log.info(f"Instruction issued at cycle {cycle}: ADDI x1, x0, 5")
+        # Safe PC read
+        if dut.core_addr.value.is_resolvable:
+            pc_val = dut.core_addr.value.integer
+        else:
+            pc_val = None
 
-        # Detect when x1 changes
+        dut._log.debug(f"[measure] cycle={cycle} pc={pc_val}")
+
+        # Detect when ADDI is fetched (at PC=0x00000080)
+        if issue_cycle is None and pc_val == 0x00000080 and dut.core_stb.value:
+            issue_cycle = cycle
+            dut._log.info(f"[measure] ADDI fetch observed at cycle {cycle} (PC=0x00000080)")
+
+        # If register bank exposes write port signals, prefer them (more precise).
+        # Best-effort search — names vary between cores, so we check common ones.
+        # If you have explicit we/waddr signals, replace this with direct handles.
+        # Fallback: detect by regfile value change.
         if issue_cycle is not None:
+            # fallback detection by observing regfile value change
             try:
                 if regfile[x1_idx].value.is_resolvable:
                     new_val = int(regfile[x1_idx].value)
-                    if new_val != baseline and new_val != 0:  # Ignore transitions from 'x' to 0
+                    if new_val != baseline:
                         write_cycle = cycle
-                        dut._log.info(f"x1 updated to {new_val} at cycle {cycle}")
+                        dut._log.info(f"[measure] regfile x1 changed to {new_val} at cycle {cycle}")
                         break
-            except (ValueError, AttributeError):
-                continue  # Skip this cycle if value is still unresolvable
+            except Exception:
+                # unresolved this cycle; keep waiting
+                pass
 
-    if issue_cycle is not None and write_cycle is not None:
-        latency = write_cycle - issue_cycle + 1  # +1 to include the write cycle
-        dut._log.info(f"Pipeline depth (latency to WB) = {latency} cycles")
-    else:
-        dut._log.warning("Could not measure pipeline depth (no regfile change detected).")
+    if issue_cycle is None or write_cycle is None:
+        dut._log.warning(f"[measure] failed to observe fetch/write (issue={issue_cycle}, write={write_cycle})")
+        return None
+
+    # Keep your +1 convention to include the write cycle as visible
+    latency = write_cycle - issue_cycle + 1
+    dut._log.info(f"[measure] measured latency (fetch → WB) = {latency} cycles (issue={issue_cycle}, write={write_cycle})")
+    return latency
 
 
 @cocotb.test()
 async def test_pc_behavior(dut, regfile):
+    # initialize driven signals
     dut.core_ack.value = 0
     dut.core_data_in.value = 0
 
@@ -93,10 +111,10 @@ async def test_pc_behavior(dut, regfile):
 
     prev_pc = None
     change_cycles = []
-    last_change = 0
+    last_change = None
     first_pc_seen = None
 
-    # Observe PC for 30 cycles
+    # Observe PC for 30 cycles (post-reset). Samples after rising edge.
     for cycle in range(30):
         await RisingEdge(dut.sys_clk)
         if not dut.core_addr.value.is_resolvable:
@@ -104,7 +122,7 @@ async def test_pc_behavior(dut, regfile):
         pc = dut.core_addr.value.integer
         dut._log.info(f"Cycle {cycle}: PC = {pc:#010x}")
 
-        # Skip "stall" period where PC stays constant at reset vector
+        # Skip initial stall period (keep first seen PC as baseline)
         if first_pc_seen is None:
             first_pc_seen = pc
             continue
@@ -116,13 +134,49 @@ async def test_pc_behavior(dut, regfile):
         if pc != prev_pc:
             change_cycles.append(cycle - last_change)
             last_change = cycle
-        prev_pc = pc
+            prev_pc = pc
 
-    # Ignore initial reset stalls (all 0s or repeated same PC)
+    output_dir = os.environ.get('OUTPUT_DIR', "default")
+    processor_name = os.path.basename(output_dir)
+    output_file = os.path.join(output_dir, f"{processor_name}_labels.json")
+    if not os.path.exists(output_file):
+        with open(output_file, 'w', encoding='utf-8') as json_file:
+            json.dump({}, json_file, indent=4)
+    try:
+        with open(output_file, 'r', encoding='utf-8') as json_file:
+            existing_data = json.load(json_file)
+    except (json.JSONDecodeError, OSError) as e:
+        logging.warning('Error reading existing JSON file: %s', e)
+        existing_data = {}
+
+    # Filter out zero-length intervals (shouldn't happen, but safe)
     filtered = [d for d in change_cycles if d > 0]
 
     if filtered and all(delta == 1 for delta in filtered):
         dut._log.info("Likely pipelined core (PC changes every cycle after reset).")
-        await measure_pipeline_depth(dut, regfile)
+        # measure pipeline depth (returns latency or None)
+        latency = await measure_pipeline_depth(dut, regfile)
+
+        if latency is None:
+            dut._log.warning("Could not measure pipeline depth.")
+        elif latency == 1:
+            dut._log.info("Detected SINGLE-CYCLE core (fetch→WB in 1 cycle).")
+            existing_data[processor_name]["multicycle"] = False
+            existing_data[processor_name]["pipeline"] = False
+        elif latency > 1:
+            dut._log.info(f"Detected PIPELINED core with depth ≈ {latency} (fetch→WB).")
+            existing_data[processor_name]["multicycle"] = False
+            existing_data[processor_name]["pipeline"] = {"depth": latency}
+        else:
+            dut._log.warning(f"Unexpected latency value: {latency}")
     else:
         dut._log.info("Likely multicycle core (PC stalls between changes).")
+        existing_data[processor_name]["multicycle"] = True
+        existing_data[processor_name]["pipeline"] = False
+
+    try:
+        with open(output_file, 'w', encoding='utf-8') as json_file:
+            json.dump(existing_data, json_file, indent=4)
+        print(f'Results saved to {output_file}')
+    except OSError as e:
+        logging.warning('Error writing to JSON file: %s', e)

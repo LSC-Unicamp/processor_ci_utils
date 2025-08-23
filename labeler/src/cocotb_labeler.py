@@ -27,7 +27,6 @@ def resolve_path(dut, path: str):
     return handle
 
 
-
 @cocotb.test()
 async def processor_test(dut):
     """Test function for the processor.
@@ -36,7 +35,8 @@ async def processor_test(dut):
         dut: The design under test.
     """
 
-    bits = count_bits(dut, None)
+    # bits = count_bits(dut, None)
+    bits = None
 
     find_register_file(dut)
 

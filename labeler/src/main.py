@@ -6,7 +6,6 @@ import os
 import logging
 import sys
 
-
 from language import identify_language
 from license import identify_license_type, find_license_files
 from cocotb_labeler import count_bits
@@ -104,7 +103,7 @@ def generate_labels_file(
         logging.warning('Error writing to JSON file: %s', e)
 
 
-def core_labeler(directory, config_file, output_dir):
+def core_labeler(directory, config_file, output_dir, top_dir):
     """Main function to find LICENSE files and generate labels.
 
     Args:
@@ -144,16 +143,15 @@ def core_labeler(directory, config_file, output_dir):
             logging.warning('Error reading file %s: %s', license_file, e)
             license_types.append('Error')
 
-    # Create a Makefile for cocotb simulation
     processor_name = os.path.basename(os.path.normpath(directory))
-    makefile = create_cocotb_makefile(processor_name, config_file, output_dir)
 
     cpu_bits = 'Undetected'
     cache = 'Undetected'
     language = identify_language(directory)
     generate_labels_file(processor_name, license_types, cpu_bits, cache, language, output_dir)
 
-    ##venv_path = "/eda/processor_ci_utils/env"
+    # Create a Makefile for cocotb simulation
+    makefile = create_cocotb_makefile(processor_name, language, config_file, top_dir, output_dir)
     bash_command = f"make -f {makefile} clean && PYTHONPATH=processor_ci_utils/labeler/src/ make -f {makefile}"
 
     try:
@@ -162,7 +160,7 @@ def core_labeler(directory, config_file, output_dir):
         logging.warning('Error executing make command: %s', e)
         return
 
-def main(directory, config_directory, output_directory):
+def main(directory, config_directory, output_directory, top_directory):
     """Main function to execute the core labeler.
 
     Args:
@@ -206,6 +204,7 @@ def main(directory, config_directory, output_directory):
             subdirectory,
             config_directory,
             output_directory,
+            top_directory
         )
         print(f'Processed {subdirectory}')
 
@@ -238,18 +237,26 @@ if __name__ == '__main__':
         default=False,
         help='Run in batch mode.',
     )
+    parser.add_argument(
+        '-t',
+        '--top',
+        default='rtl',
+        help='The top folder for the processor.',
+    )
     args = parser.parse_args()
     dir_to_search = args.dir
     config_json = args.config
     output_folder = args.output
     batch_mode = args.batch
+    top_folder = args.top
     if batch_mode:
         # Run in batch mode
-        main(dir_to_search, config_json, output_folder)
+        main(dir_to_search, config_json, output_folder, top_folder)
     else:
         # Run in interactive mode
         core_labeler(
             dir_to_search,
             config_json,
             output_folder,
+            top_folder
         )
