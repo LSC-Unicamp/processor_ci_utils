@@ -63,6 +63,8 @@ async def processor_test(dut):
     regfile = resolve_path(dut, regfile_path)
     print(f"Resolved register file: {regfile}")
 
+    bits = len(regfile)
+
     await test_pc_behavior(dut, regfile)
 
     output_file = os.path.join(output_dir, f"{processor_name}_labels.json")
