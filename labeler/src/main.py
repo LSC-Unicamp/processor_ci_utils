@@ -120,28 +120,30 @@ def core_labeler(directory, config_file, output_dir, top_dir):
 
     if not license_files:
         logging.warning('No LICENSE files found in the directory.')
-        return
 
     license_types = []
+    license_types.append('Undetected')
 
-    for license_file in license_files:
-        try:
-            with open(license_file, 'r', encoding='utf-8') as file:
-                content = file.read()
-                license_type = identify_license_type(content)
-                license_types.append(license_type)
-        except UnicodeDecodeError:
+    if license_files:
+        license_types.remove('Undetected')
+        for license_file in license_files:
             try:
-                with open(license_file, 'r', encoding='latin-1') as file:
+                with open(license_file, 'r', encoding='utf-8') as file:
                     content = file.read()
                     license_type = identify_license_type(content)
                     license_types.append(license_type)
+            except UnicodeDecodeError:
+                try:
+                    with open(license_file, 'r', encoding='latin-1') as file:
+                        content = file.read()
+                        license_type = identify_license_type(content)
+                        license_types.append(license_type)
+                except OSError as e:
+                    logging.warning('Error reading file %s: %s', license_file, e)
+                    license_types.append('Error')
             except OSError as e:
                 logging.warning('Error reading file %s: %s', license_file, e)
                 license_types.append('Error')
-        except OSError as e:
-            logging.warning('Error reading file %s: %s', license_file, e)
-            license_types.append('Error')
 
     processor_name = os.path.basename(os.path.normpath(directory))
 

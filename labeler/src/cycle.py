@@ -177,6 +177,6 @@ async def test_pc_behavior(dut, regfile):
     try:
         with open(output_file, 'w', encoding='utf-8') as json_file:
             json.dump(existing_data, json_file, indent=4)
-        print(f'Results saved to {output_file}')
+        dut._log.info(f'Results saved to {output_file}')
     except OSError as e:
         logging.warning('Error writing to JSON file: %s', e)

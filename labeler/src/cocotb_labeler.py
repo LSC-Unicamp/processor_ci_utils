@@ -42,7 +42,7 @@ async def processor_test(dut):
 
     output_dir = os.environ.get('OUTPUT_DIR', "default")
     processor_name = os.path.basename(output_dir)
-    print(f"Processor name: {output_dir}")
+    dut._log.info(f"Processor name: {output_dir}")
 
     # Load register file candidates
     regfile_candidates = []
@@ -58,12 +58,12 @@ async def processor_test(dut):
     dut._log.info(f"Register file candidates: {regfile_candidates}")    
 
     regfile_path = regfile_candidates[0]['regfile_path']
-    print(f"Using register file: {regfile_path}")
+    dut._log.info(f"Using register file: {regfile_path}")
 
     regfile = resolve_path(dut, regfile_path)
-    print(f"Resolved register file: {regfile}")
+    dut._log.info(f"Resolved register file: {regfile}")
 
-    bits = len(regfile)
+    bits = len(regfile[7])
 
     await test_pc_behavior(dut, regfile)
 
@@ -87,6 +87,6 @@ async def processor_test(dut):
     try:
         with open(output_file, 'w', encoding='utf-8') as json_file:
             json.dump(existing_data, json_file, indent=4)
-        print(f'Results saved to {output_file}')
+        dut._log.info(f'Results saved to {output_file}')
     except OSError as e:
         logging.warning('Error writing to JSON file: %s', e)
