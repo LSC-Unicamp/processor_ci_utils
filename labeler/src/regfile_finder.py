@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import subprocess
+import logging
 
 def explore_current_module(dut):
     submodules = []
