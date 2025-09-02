@@ -124,6 +124,7 @@ if __name__ == "__main__":
     # copy this file to the makefile directory
     # run the simulation to find the register file
     # remove the copy
+    # TODO: change this to use "PYTHONPATH" and "make -f"
 
     makefile_dir = os.path.dirname(os.path.abspath(args.makefile))
     subprocess.run(["cp", __file__, makefile_dir])
