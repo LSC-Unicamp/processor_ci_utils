@@ -16,13 +16,12 @@ def standard_makefile(processor_name: str, language: str, config_folder: str, ou
     # Load the processor configuration
     inc_dir = config['include_dirs']
     sim_files = config['files']
-    if top_module == '':
-        top_module = config['top_module']
+    top_module = config['top_module']
     language_version = config['language_version']
 
     # Write the Makefile content
     with open(makefile_path, 'a', encoding='utf-8') as makefile:
-        if language == 'verilog':
+        if language == 'Verilog':
             makefile.write('SIM ?= icarus\n')
             makefile.write('TOPLEVEL_LANG ?= verilog\n')
             makefile.write(f'COMPILE_ARGS ?= -g{language_version}\n')
@@ -33,7 +32,7 @@ def standard_makefile(processor_name: str, language: str, config_folder: str, ou
                 path = escape_spaces(f'cores/{processor_name}/{file}')
                 makefile.write(f'VERILOG_SOURCES += {path}\n')
 
-        elif language == 'systemverilog':
+        elif language == 'SystemVerilog':
             makefile.write('SIM ?= verilator\n')
             makefile.write('TOPLEVEL_LANG ?= verilog\n')
             makefile.write(f'COMPILE_ARGS ?= --language 1800-{language_version}\n')
@@ -44,7 +43,7 @@ def standard_makefile(processor_name: str, language: str, config_folder: str, ou
                 path = escape_spaces(f'cores/{processor_name}/{file}')
                 makefile.write(f'VERILOG_SOURCES += {path}\n')
 
-        elif language == 'vhdl':
+        elif language == 'VHDL':
             makefile.write('SIM ?= ghdl\n')
             makefile.write('TOPLEVEL_LANG ?= vhdl\n')
             makefile.write(f'COMPILE_ARGS ?= --std={language_version}\n')
@@ -113,6 +112,9 @@ def create_cocotb_makefile(processor_name: str, language: str, config_folder: st
         level=logging.WARNING,
         format='%(levelname)s: %(message)s',
     )
+
+    print(f"Creating Makefile for {processor_name}...")
+
     # Ensure the output folder exists
     os.makedirs(output_dir, exist_ok=True)
 
@@ -135,24 +137,27 @@ def create_cocotb_makefile(processor_name: str, language: str, config_folder: st
     # Check if the top folder exists
     if os.path.exists(top_folder):
         top_path = os.path.abspath(top_folder)
+        top_file = os.path.join(top_path, f'top_{processor_name}.sv')
+    else:
+        top_path = ""
+        top_file = ""
 
     # Check if there is a top file for the processor
-    top_file = os.path.join(top_path, f'top_{processor_name}.sv')
     if not os.path.exists(top_file):
         logging.warning(f'Top file {top_file} does not exist. Simulating without processor_ci top file.')
-        makefile_path = processor_top_makefile(
+        makefile_path = standard_makefile(
             processor_name, 
+            language, 
             config_folder, 
-            top_path, 
             output_dir, 
             makefile_path, 
             cocotb_name
         )
     else:
-        makefile_path = standard_makefile(
+        makefile_path = processor_top_makefile(
             processor_name, 
-            language, 
             config_folder, 
+            top_path, 
             output_dir, 
             makefile_path, 
             cocotb_name

@@ -150,17 +150,22 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     cpu_bits = 'Undetected'
     cache = 'Undetected'
     language = identify_language(directory)
+    print(f"Identified language: {language}")
 
     generate_labels_file(processor_name, license_types, cpu_bits, cache, language, output_dir)
 
     # Create a Makefile for cocotb simulation
     makefile = create_cocotb_makefile(processor_name, language, config_file, top_dir, output_dir)
-    bash_command = f"make -f {makefile} clean && PYTHONPATH=processor_ci_utils/labeler/src/ make -f {makefile}"
+    
+    # Get the absolute path to the labeler src directory
+    labeler_src_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+
+    bash_command = f"make -f {makefile} clean && PYTHONPATH={labeler_src_path} make -f {makefile}"
 
     try:
         subprocess.run(bash_command, shell=True, check=True, executable="/bin/bash")
     except subprocess.CalledProcessError as e:
-        logging.warning('Error executing make command: %s', e)
+        logging.warning('Could not execute make command: %s', e)
         return
 
 def main(directory, config_directory, output_directory, top_directory):
@@ -203,6 +208,7 @@ def main(directory, config_directory, output_directory, top_directory):
     for subdirectory in subdirectories:
         if ('@' in subdirectory):
             continue
+        print(f"Processing labeler on {subdirectory}...")
         core_labeler(
             subdirectory,
             config_directory,
