@@ -119,7 +119,7 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     license_files = find_license_files(directory)
 
     if not license_files:
-        logging.warning('No LICENSE files found in the directory.')
+        logging.warning(f'No LICENSE files found in the directory {directory}.')
 
     license_types = []
     license_types.append('Undetected')
