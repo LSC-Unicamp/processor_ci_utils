@@ -176,3 +176,5 @@ cython_debug/
 # Local configuration files
 performance_logs/
 cores_utils/
+sim_build/
+cores/
