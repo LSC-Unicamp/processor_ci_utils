@@ -32,24 +32,39 @@ def run_command(cores: list):
 
 
     for core in cores:
-        command = f"python processor_ci_utils/labeler/src/main.py -d cores/{core} -t processor_ci/rtl -c processor_ci/config"
+        command = f"python3 labeler/src/main.py -d cores/{core} -t ../processor_ci/rtl -c ../processor_ci/config"
         print(f"Now testing {core}")
         try:
             # Run the command and stores it's output
             result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
+            print(f"Command output: {result.stdout}")
+            print(f"Command error (if any): {result.stderr}")
 
+            failure_detected = False
             for keyword in fail_keywords:
-                if keyword not in (result.stdout + "\n" + result.stderr):
-                    print(f"{core} executed successfully!")
-                    success+=1
-                    successful_cores.append(core)
-                else:
+                if keyword in (result.stdout + "\n" + result.stderr):
                     failed_cores.append(core)
                     print(f"{core} failed!")
+                    print(f"Error output: {result.stderr}")
+                    if result.stdout:
+                        print(f"Standard output: {result.stdout}")
+                    failure_detected = True
+                    break
+            
+            if not failure_detected:
+                print(f"{core} executed successfully!")
+                success+=1
+                successful_cores.append(core)
 
-        except:
+        except subprocess.CalledProcessError as e:
             failed_cores.append(core)
-            print(f"{core} failed!")
+            print(f"{core} failed with exit code {e.returncode}!")
+            print(f"Error output: {e.stderr}")
+            if e.stdout:
+                print(f"Standard output: {e.stdout}")
+        except Exception as e:
+            failed_cores.append(core)
+            print(f"{core} failed with exception: {str(e)}")
 
     return success, failed_cores, successful_cores
 
@@ -60,9 +75,9 @@ if __name__ == "__main__":
 
     # dirs = ["airisc_core_complex', 'Anfield', 'arRISCado', 'Baby-Risco-5"]
 
-    success, successful_cores, failed_cores = run_command(dirs)
+    success, failed_cores, successful_cores = run_command(dirs)
 
     print(f"Successful cores: {successful_cores}")
     print(f"Failed cores: {failed_cores}")
 
-    print(f"Successful simuations: {success} out of {len(dirs)}")
+    print(f"Successful simulations: {success} out of {len(dirs)}")
