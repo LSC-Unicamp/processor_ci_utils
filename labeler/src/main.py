@@ -125,7 +125,7 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     license_files = find_license_files(directory)
 
     if not license_files:
-        logging.warning('No LICENSE files found in the directory.')
+        logging.warning(f'No LICENSE files found in the directory {directory}.')
 
     license_types = []
     license_types.append('Undetected')
@@ -156,6 +156,7 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     cpu_bits = 'Undetected'
     cache = 'Undetected'
     language = identify_language(directory)
+    print(f"Identified language: {language}")
 
     generate_labels_file(processor_name, license_types, cpu_bits, cache, language, output_dir)
 
@@ -223,16 +224,17 @@ def main(directory, config_directory, output_directory, top_directory):
         if os.path.isdir(os.path.join(directory, d))
     ]
 
-    for subdirectory in subdirectories:
-        if ('@' in subdirectory):
-            continue
-        core_labeler(
-            subdirectory,
-            config_directory,
-            output_directory,
-            top_directory
-        )
-        print(f'Processed {subdirectory}')
+     for subdirectory in subdirectories:
+         if ('@' in subdirectory):
+             continue
+         print(f"Processing labeler on {subdirectory}...")
+         core_labeler(
+             subdirectory,
+             config_directory,
+             output_directory,
+             top_directory
+         )
+         print(f'Processed {subdirectory}')
 
         
 if __name__ == '__main__':
