@@ -5,7 +5,6 @@ import argparse
 import os
 import logging
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from language import identify_language
 from license import identify_license_type, find_license_files
@@ -157,19 +156,7 @@ def core_labeler(directory, config_file, output_dir, top_dir):
 
     # Create a Makefile for cocotb simulation
     makefile = create_cocotb_makefile(processor_name, language, config_file, top_dir, output_dir)
-    
-    # Get the absolute path to the labeler src directory
-    labeler_src_path = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-    # Create unique sim_builds to allow parallel jobs
-    sim_build_dir = os.path.join(output_dir, 'sim_build', processor_name)
-    os.makedirs(sim_build_dir, exist_ok=True)
-    bash_command = f"make -f {makefile} clean && PYTHONPATH={labeler_src_path} make -f {makefile} SIM_BUILD={sim_build_dir}"
-
-    try:
-        subprocess.run(bash_command, shell=True, check=True, executable="/bin/bash")
-    except subprocess.CalledProcessError as e:
-        logging.warning('Could not execute make command: %s', e)
-        return
+    bash_command = f"make -f {makefile} clean && PYTHONPATH=processor_ci_utils/labeler/src/ make -f {makefile}"
 
 def main(directory, config_directory, output_directory, top_directory):
     """Main function to execute the core labeler.
@@ -208,36 +195,17 @@ def main(directory, config_directory, output_directory, top_directory):
         if os.path.isdir(os.path.join(directory, d))
     ]
 
-    # for subdirectory in subdirectories:
-    #     if ('@' in subdirectory):
-    #         continue
-    #     print(f"Processing labeler on {subdirectory}...")
-    #     core_labeler(
-    #         subdirectory,
-    #         config_directory,
-    #         output_directory,
-    #         top_directory
-    #     )
-    #     print(f'Processed {subdirectory}')
-
-
-    with ThreadPoolExecutor(max_workers=4) as executor:  # adjust workers
-        futures = {
-            executor.submit(core_labeler, sub, config_directory, output_directory, top_directory): sub
-            for sub in subdirectories if '@' not in sub
-        }
-
-        for future in as_completed(futures):
-            sub = futures[future]
-            try:
-                result = future.result()
-                print(f"Processed {sub}, return code {result.returncode}")
-                if result.stdout:
-                    print(result.stdout)
-                if result.stderr:
-                    print(result.stderr)
-            except Exception as e:
-                print(f"{sub} failed: {e}")
+     for subdirectory in subdirectories:
+         if ('@' in subdirectory):
+             continue
+         print(f"Processing labeler on {subdirectory}...")
+         core_labeler(
+             subdirectory,
+             config_directory,
+             output_directory,
+             top_directory
+         )
+         print(f'Processed {subdirectory}')
 
         
 if __name__ == '__main__':
