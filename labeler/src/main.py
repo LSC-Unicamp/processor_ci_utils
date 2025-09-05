@@ -6,13 +6,19 @@ import os
 import logging
 import sys
 
+from pathlib import Path
+
 from language import identify_language
 from license import identify_license_type, find_license_files
 from cocotb_labeler import count_bits
 from cocotb_makefile_creator import create_cocotb_makefile
 from config import load_config
+from simulate import run_ghdl_import, run_ghdl_elaborate, synthesize_to_verilog
 
 DESTINATION_DIR = './cores'
+BASE_DIR = Path('./')
+BUILD_DIR = BASE_DIR / 'build'
+
 
 def clone_repo(url: str, repo_name: str) -> str:
     """Clones a GitHub repository to a specified directory.
@@ -153,6 +159,23 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     print(f"Identified language: {language}")
 
     generate_labels_file(processor_name, license_types, cpu_bits, cache, language, output_dir)
+
+    print(language)
+
+    #VHDL treatment
+    if language.lower() == 'vhdl':
+        config = load_config(config_file, processor_name)
+        sim_files = config['files']
+        for i in range(len(sim_files)):
+            sim_files[i] = os.path.join('cores', processor_name, sim_files[i])
+        top_module = config['top_module']
+
+        BUILD_DIR.mkdir(exist_ok=True)
+        run_ghdl_import(processor_name, sim_files)
+        run_ghdl_elaborate(processor_name, top_module)
+        verilog_output = BUILD_DIR / f'{processor_name}.v'
+        print(verilog_output)
+        synthesize_to_verilog(processor_name, verilog_output, top_module)
 
     # Create a Makefile for cocotb simulation
     makefile = create_cocotb_makefile(processor_name, language, config_file, top_dir, output_dir)
