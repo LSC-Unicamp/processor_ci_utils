@@ -94,7 +94,6 @@ async def measure_pipeline_depth(dut, regfile):
     return latency
 
 
-@cocotb.test()
 async def test_pc_behavior(dut, regfile):
     # initialize driven signals
     dut.core_ack.value = 0
