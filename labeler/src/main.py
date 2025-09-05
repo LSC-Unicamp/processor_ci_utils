@@ -158,6 +158,12 @@ def core_labeler(directory, config_file, output_dir, top_dir):
     makefile = create_cocotb_makefile(processor_name, language, config_file, top_dir, output_dir)
     bash_command = f"make -f {makefile} clean && PYTHONPATH=processor_ci_utils/labeler/src/ make -f {makefile}"
 
+    try:
+        subprocess.run(bash_command, shell=True, check=True, executable="/bin/bash")
+    except subprocess.CalledProcessError as e:
+        logging.warning('Error executing make command: %s', e)
+        return
+
 def main(directory, config_directory, output_directory, top_directory):
     """Main function to execute the core labeler.
 
